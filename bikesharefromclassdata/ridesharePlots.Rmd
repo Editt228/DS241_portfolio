@@ -1,0 +1,104 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+#packages
+```{r}
+library(tidyverse)
+library(janitor)
+library(here)
+```
+
+```{r}
+
+```
+
+#data read
+```{r}
+df1=read_csv(here("data_raw", "202309-capitalbikeshare-tripdata.zip"))
+```
+
+#riders vs time
+
+```{r}
+df2=df1|>
+#commented out, used for ease of viewing mods #  slice_head(n=100)|>
+  pivot_longer(
+    cols=c(started_at,ended_at),
+    names_to="start_end",
+    values_to="t")|>
+  arrange(t)|>
+  mutate(rider_delta=(start_end == "started_at")*2-1)|>
+  mutate(riders=cumsum(rider_delta))|>
+  relocate(t,start_end,riders, .after=rideable_type)
+  
+##creating a new dataframe out of a modified prior dataframe, new columns and variables created and changed, relocated columns, adn has been oraganized to view easier using dplyr and other packages functions.
+```
+
+# plots of rider ship
+## full month
+```{r}
+df2 %>%
+  ggplot(aes(t,riders)) +
+  geom_line()+
+  ggtitle("riders in september")
+
+## creating a simple line plot out of a dataframe, with a title added, similar to how x and y axis labels would be added
+```
+##one day
+```{r}
+df2 %>% 
+  filter(day(t)==18) %>%
+  ggplot(aes(t,riders)) +
+  geom_line()+
+  ggtitle("riders on september 18th")
+
+## making a plot out of filtered data to see a single instance within the dataframe
+```
+```{r}
+df2 %>% 
+  filter(day(t)==18) %>%
+  ggplot(aes(x = rideable_type)) +
+  geom_bar()
+
+## a plot using a bar graph showing a comparison between rideable types on one day in september
+```
+
+
+## ridershipo with panels
+```{r}
+df2 %>% filter(month(t)==9) %>%
+   ggplot(aes(t,riders)) +
+  geom_line()+
+  facet_wrap(~mday(t),scales = "free_x",ncol=7) +
+  ggtitle("riders by day of month")
+
+## using a facet wrap on a plot to create a grid of plots according to the given constraints
+```
+## by weekday
+```{r}
+df2 %>% filter(month(t)==9) %>% 
+  mutate(epi=epiweek(t),wd=wday(t,label=TRUE,week_start=7)) %>%
+  ggplot(aes(hms::as_hms(t),riders,color=as.factor(epi))) +
+  geom_line(alpha=.7) +
+  facet_wrap(~wd,scales = "free_x",ncol=7)
+
+## changing aesthetics of the plot such as the color of different variables so they are easier to view individually, and adjusting the opacity of the lines, adnn focusing on fewer data with the facet wrap
+```
+
+### is the pattern similar between electric and classic bikes eh
+```{r}
+df3=df2 %>%
+  mutate(type_riders=cumsum(rider_delta),.by=rideable_type) %>%
+  relocate(type_riders,.after=riders)
+
+## creating a new variable that takes the cumulative sum of the rider_delta variable, in accordance to the rideable_type.
+```
+
+```{r}
+df3 %>% filter(month(t)==9) %>%
+  ggplot(aes(t,type_riders,color=rideable_type)) +
+  geom_line() +
+  facet_wrap(~mday(t),scales = "free_x",ncol=7)
+```
+
